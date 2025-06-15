@@ -13,14 +13,15 @@
 // --- Pengaturan OLED ---
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-#define SCREEN_ADDRESS 0x3C // Alamat umum, ganti ke 0x3D jika perlu
-#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C // Alamat umum, ganti ke 0x3D jika punya Anda berbeda
+#define OLED_RESET    -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // --- Pengaturan GPS ---
 SoftwareSerial gpsSerial(4, 5); // RX, TX
 
 // Struktur untuk menampung data mentah dari payload UBX-NAV-PVT
+#pragma pack(push, 1) // Memastikan struct tidak memiliki padding
 struct GpsData {
   uint32_t iTOW;
   uint16_t year;
@@ -39,10 +40,11 @@ struct GpsData {
   int16_t  magDec;
   uint16_t magAcc;
 };
+#pragma pack(pop)
 
 GpsData gpsData; // Variabel global untuk menampung data GPS
 
-// State Machine untuk parser GPS
+// Variabel untuk State Machine parser GPS
 enum GpsState {
   STATE_WAIT_SYNC1, STATE_WAIT_SYNC2, STATE_WAIT_CLASS, STATE_WAIT_ID,
   STATE_WAIT_LEN1, STATE_WAIT_LEN2, STATE_PAYLOAD, STATE_CHECKSUM
@@ -72,7 +74,6 @@ bool parseUbx() {
 
   while (gpsSerial.available() > 0) {
     byte b = gpsSerial.read();
-    // (Logika state machine dan parser GPS diringkas di sini, sama seperti sebelumnya)
     switch (currentState) {
       case STATE_WAIT_SYNC1: if (b == 0xB5) currentState = STATE_WAIT_SYNC2; break;
       case STATE_WAIT_SYNC2: if (b == 0x62) { currentState = STATE_WAIT_CLASS; } else { currentState = STATE_WAIT_SYNC1; } break;
@@ -89,7 +90,10 @@ bool parseUbx() {
 
 // --- Fungsi Getter untuk Data GPS ---
 bool isLocationValid() { return (gpsData.flags & 0x01) && (gpsData.fixType >= 3); }
-double getGroundSpeedKmh() { return (gpsData.gSpeed / 1000.0) * 3.6; }
+double getGroundSpeedKmh() { 
+  // gSpeed dari GPS dalam mm/s. Konversi ke m/s lalu ke km/h
+  return (gpsData.gSpeed / 1000.0) * 3.6; 
+}
 
 
 // ======================================================================
@@ -97,36 +101,40 @@ double getGroundSpeedKmh() { return (gpsData.gSpeed / 1000.0) * 3.6; }
 // ======================================================================
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600); // Untuk debugging di Serial Monitor
   
-  // PENTING: Gunakan 9600 setelah Anda menjalankan sketsa "Konfigurator"
-  gpsSerial.begin(9600); 
+  // Inisialisasi port serial untuk GPS
+  // PASTIKAN baud rate ini sesuai dengan konfigurasi modul GPS Anda!
+  gpsSerial.begin(115200); 
 
-  // Inisialisasi display dengan alamat I2C
+  // Inisialisasi display OLED
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("Alokasi SSD1306 gagal"));
-    for(;;);
+    for(;;); // Hentikan program jika OLED tidak terdeteksi
   }
 
-  // Tampilkan tampilan awal saat startup
+  // Tampilkan layar pembuka saat startup
   display.clearDisplay();
-  display.setTextSize(2);
+  
+  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   drawCenteredText("PUS Tigagajah", 10);
-  display.setTextSize(3);
-  drawCenteredText("0.00", 38); // Tampilan kecepatan awal
-  display.setTextSize(2);
-  drawCenteredText("KM/JAM", 64 - 12); // Tampilan satuan
+  
+  // Tampilan kecepatan awal dan satuannya dibuat terpisah agar lebih rapi
+  display.setTextSize(1);
+  drawCenteredText("0.00", 38);
+  display.setTextSize(1);
+  drawCenteredText("KM/JAM", 64 - 12); 
 
-  display.display();
+  display.display(); // Tampilkan ke layar
 }
 
 void loop() {
-  // Selalu panggil fungsi parser di setiap loop
+  // Selalu panggil fungsi parser di setiap loop untuk memeriksa data dari GPS
   if (parseUbx()) {
     // Blok ini hanya akan berjalan jika ada data GPS baru yang valid
     
-    // Ambil kecepatan dalam km/j
+    // Ambil kecepatan dalam km/jam
     double speedKmh = getGroundSpeedKmh();
 
     // Format teks kecepatan (dua angka di belakang koma)
@@ -135,18 +143,25 @@ void loop() {
     // Hapus tampilan lama dan gambar ulang dengan data baru
     display.clearDisplay();
     
-    // Gambar ulang teks statis
-    display.setTextSize(2);
+    // Gambar ulang teks statis di baris atas
+    display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
     drawCenteredText("PUS Tigagajah", 10);
     
     // Gambar ulang teks kecepatan yang dinamis
-    display.setTextSize(3);
+    display.setTextSize(1);
     drawCenteredText(speedText, 38);
-    display.setTextSize(2);
+
+    // Gambar ulang satuan di bawahnya
+    display.setTextSize(1);
     drawCenteredText("KM/JAM", 64 - 12);
 
-    // Kirim buffer ke layar
+    // Kirim buffer yang sudah digambar ke layar OLED
     display.display();
+
+    // (Opsional) Cetak ke Serial Monitor untuk debugging
+    Serial.print("Kecepatan terdeteksi: ");
+    Serial.print(speedKmh);
+    Serial.println(" km/jam");
   }
 }
