@@ -24,7 +24,7 @@ void tulisanputih(){
 u8g2.setFont(u8g2_font_helvB10_tf);
 u8g2.drawBox(0,0,128,32); 
 u8g2.setColorIndex(0);
-u8g2.drawStr( 15, 20, "PUS Tigagajah");
+u8g2.drawStr( 15, 20, "Aku nyoba wkwkwk");
 }
 
 void tulisan(){
