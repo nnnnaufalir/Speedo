@@ -263,6 +263,7 @@ void loop() {
   do {
     drawStatusBox();
     drawSpeedBox(currentSpeedKmh);
+    Serial.println("Looping Disini?");
   } while (u8g2.nextPage());
 
   delay(10);
