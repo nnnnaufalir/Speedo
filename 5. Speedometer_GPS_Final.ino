@@ -271,8 +271,6 @@ void loop() {
   do {
     drawStatusBox();
     drawSpeedBox(currentSpeedKmh);
-    Serial.println("Looping LCD Berjalan");
-    Serial.println("---------------------------------");
   } while (u8g2.nextPage());
 
   delay(10);
