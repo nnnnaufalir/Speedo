@@ -251,6 +251,11 @@ void loop() {
     Serial.println("---------------------------------");
   }
 
+  else {
+    Serial.println("Gagal Mengambil data GPS");
+    Serial.println("---------------------------------");
+  }
+
   // Cek jika sinyal GPS hilang (tidak ada paket data selama > 3 detik)
   if (gpsDataReceived && (millis() - lastGpsPacketTime > 3000)) {
     Serial.println("ALERT: Sinyal GPS hilang. Kecepatan di-set 0.");
@@ -258,12 +263,16 @@ void loop() {
     lastGpsPacketTime = millis();  // Reset timer untuk menghindari spam alert
   }
 
+  Serial.println("Looping Utama Berjalan");
+  Serial.println("---------------------------------");
+
   // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
   u8g2.firstPage();
   do {
     drawStatusBox();
     drawSpeedBox(currentSpeedKmh);
-    Serial.println("Looping Disini?");
+    Serial.println("Looping LCD Berjalan");
+    Serial.println("---------------------------------");
   } while (u8g2.nextPage());
 
   delay(10);
