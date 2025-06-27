@@ -153,10 +153,10 @@ bool isLocationValid() { return (gpsData.flags & 0x01) && (gpsData.fixType >= 3)
 // ======================================================================
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   
   // PENTING: Gunakan 9600 setelah Anda menjalankan sketsa "Konfigurator"
-  gpsSerial.begin(9600); 
+  gpsSerial.begin(115200); 
 
   Serial.println("Parser GPS UBX-NAV-PVT dalam satu file .ino");
   Serial.println("Menunggu data GPS...");
