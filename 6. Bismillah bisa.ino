@@ -165,15 +165,16 @@ double convertToKmPerHour(double speed_ms) {
 }
 
 void setup() {
-  u8g2.begin();
-  u8g2.enableUTF8Print();
-  u8g2.setFontDirection(0);
 
   Serial.begin(9600);
   gpsSerial.begin(115200);
 
   Serial.println("Parser GPS UBX-NAV-PVT dalam satu file .ino");
   Serial.println("Menunggu data GPS...");
+
+  u8g2.begin();
+  u8g2.enableUTF8Print();
+  u8g2.setFontDirection(0);
 }
 
 void loop() {
@@ -208,8 +209,8 @@ void loop() {
     do {
       drawStatusBox();
       drawSpeedBox(currentSpeedKmh);
-      Serial.println("Looping LCD Berjalan");
-      Serial.println("---------------------------------");
+      // Serial.println("Looping LCD Berjalan");
+      // Serial.println("---------------------------------");
     } while (u8g2.nextPage());
   }
 
