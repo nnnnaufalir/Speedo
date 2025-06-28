@@ -185,8 +185,5 @@ void loop() {
     Serial.println("---------------------------------");
   }
 
-  else {
-    Serial.println("Gagal Mengambil data GPS");
-    Serial.println("---------------------------------");
-  }
+  delay(10);
 }
