@@ -1,18 +1,21 @@
-// ======================================================================
-// BAGIAN 1: PENGATURAN & DEKLARASI GLOBAL
-// Menggabungkan library, konfigurasi LCD, dan deklarasi GPS
-// ======================================================================
-
+#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <U8g2lib.h>
 #include <U8x8lib.h>
-#include <SoftwareSerial.h>
 
+// ======================================================================
+// 1. PENGATURAN & DEKLARASI GLOBAL
+// ======================================================================
 // --- Konfigurasi LCD (sesuai yang Anda berikan) ---
 U8G2_ST7920_128X64_1_HW_SPI u8g2(U8G2_R0, /* CS=*/10, /* reset=*/8);
 
-// --- Konfigurasi GPS (sesuai yang Anda berikan) ---
+// Atur pin yang akan digunakan untuk SoftwareSerial
 SoftwareSerial gpsSerial(4, 5);  // RX, TX
+
+// Variabel global untuk menyimpan status & kecepatan
+double currentSpeedKmh = 0.0;
+unsigned long lastGpsPacketTime = 0;
+bool gpsDataReceived = false;
 
 // Struktur untuk menampung data mentah dari payload UBX-NAV-PVT
 struct GpsData {
@@ -51,7 +54,6 @@ struct GpsData {
   uint16_t magAcc;
 };
 
-
 // Buat satu variabel global untuk menampung data GPS
 GpsData gpsData;
 
@@ -69,17 +71,12 @@ enum GpsState {
 
 GpsState currentState = STATE_WAIT_SYNC1;
 
-// Variabel global untuk menyimpan status & kecepatan
-double currentSpeedKmh = 0.0;
-unsigned long lastGpsPacketTime = 0;
-bool gpsDataReceived = false;
-
 // ======================================================================
-// BAGIAN 2: FUNGSI PARSING & PENGOLAHAN DATA GPS
+// 2. FUNGSI HELPER UNTUK PARSING GPS
+// ======================================================================
+
 // Fungsi ini adalah jantung dari parser.
 // Mengembalikan 'true' jika ada paket data baru yang valid.
-// ======================================================================
-
 bool parseUbx() {
   uint8_t msgClass, msgId;
   uint16_t msgLen;
@@ -157,9 +154,22 @@ bool parseUbx() {
   return false;  // Tidak ada data baru yang selesai diproses
 }
 
+// ======================================================================
+// 3. FUNGSI GETTER UNTUK MENGOLAH DATA
+// ======================================================================
+
+double getLatitude() {
+  return gpsData.lat / 10000000.0;
+}
+double getLongitude() {
+  return gpsData.lon / 10000000.0;
+}
+double getAltitudeMSL() {
+  return gpsData.hMSL / 1000.0;
+}
 double getGroundSpeed() {
   return gpsData.gSpeed / 1000.0;
-}  // Hasil dalam m/s
+}
 bool isLocationValid() {
   return (gpsData.flags & 0x01) && (gpsData.fixType >= 3);
 }
@@ -168,9 +178,72 @@ double convertToKmPerHour(double speed_ms) {
 }
 
 // ======================================================================
-// BAGIAN 3: FUNGSI TAMPILAN LCD
-// Disesuaikan dari kode LCD Anda yang berhasil tampil
+// 4. FUNGSI UTAMA ARDUINO
 // ======================================================================
+
+void setup() {
+  Serial.begin(9600);
+
+  // PENTING: Gunakan 9600 setelah Anda menjalankan sketsa "Konfigurator"
+  gpsSerial.begin(115200);
+
+  Serial.println("Parser GPS UBX-NAV-PVT dalam satu file .ino");
+  Serial.println("Menunggu data GPS...");
+
+  u8g2.begin();
+  u8g2.enableUTF8Print();
+  u8g2.setFontDirection(0);
+}
+
+void loop() {
+  // Panggil fungsi parser. Jika mengembalikan true, cetak datanya.
+  if (parseUbx()) {
+    Serial.println("--- Data GPS Valid Diterima ---");
+    lastGpsPacketTime = millis();  // Catat waktu terakhir dapat paket valid
+    gpsDataReceived = true;
+
+    if (isLocationValid()) {
+      Serial.print("  Lokasi: ");
+      Serial.print(getLatitude(), 7);
+      Serial.print(", ");
+      Serial.println(getLongitude(), 7);
+      Serial.print("  Ketinggian: ");
+      Serial.print(getAltitudeMSL());
+      Serial.println(" m (di atas permukaan laut)");
+      Serial.print("  Kecepatan: ");
+      Serial.print(getGroundSpeed());
+      Serial.println(" m/s");
+      currentSpeedKmh = convertToKmPerHour(getGroundSpeed());
+      Serial.print("Status: LOKASI VALID. Kecepatan: ");
+      Serial.print(currentSpeedKmh);
+      Serial.println(" km/j");
+    }
+
+    else {
+      currentSpeedKmh = 0.0;
+      Serial.println("  Lokasi Belum Valid (Fix Type < 3D)");
+    }
+
+    Serial.print("  Satelit: ");
+    Serial.println(gpsData.numSV);
+    Serial.println("---------------------------------");
+    // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
+    u8g2.firstPage();
+    do {
+      drawStatusBox();
+      drawSpeedBox(currentSpeedKmh);
+      Serial.println("Looping LCD Berjalan");
+      Serial.println("---------------------------------");
+    } while (u8g2.nextPage());
+  }
+
+  else {
+    Serial.println("Gagal Mengambil data GPS");
+    Serial.println("---------------------------------");
+  }
+
+  delay(10);
+}
 
 void drawStatusBox() {
   u8g2.drawBox(0, 0, 128, 32);
@@ -205,73 +278,4 @@ void drawSpeedBox(double speed) {
 
   // Gambar bingkai di bagian bawah
   u8g2.drawFrame(0, 32, 128, 32);
-}
-
-// ======================================================================
-// BAGIAN 4: FUNGSI UTAMA ARDUINO
-// ======================================================================
-
-void setup() {
-  // --- Inisialisasi Serial untuk Debugging ---
-  Serial.begin(9600);
-  Serial.println("===============================");
-  Serial.println("GPS Speedometer - PUS Tigagajah");
-  Serial.println("===============================");
-  Serial.println("Menunggu data dari modul GPS...");
-
-  // --- Inisialisasi GPS ---
-  gpsSerial.begin(115200);  // Sesuai kode dasar Anda
-
-  // --- Inisialisasi LCD ---
-  u8g2.begin();
-  u8g2.enableUTF8Print();
-  u8g2.setFontDirection(0);
-}
-
-void loop() {
-  // Selalu coba baca data dari GPS
-  if (parseUbx()) {
-    lastGpsPacketTime = millis();  // Catat waktu terakhir dapat paket valid
-    gpsDataReceived = true;
-
-    // Cetak info ke Serial Monitor untuk debugging
-    Serial.println("--- Paket UBX Valid Diterima ---");
-    Serial.print("Jumlah Satelit: ");
-    Serial.println(gpsData.numSV);
-
-    if (isLocationValid()) {
-      currentSpeedKmh = convertToKmPerHour(getGroundSpeed());
-      Serial.print("Status: LOKASI VALID. Kecepatan: ");
-      Serial.print(currentSpeedKmh);
-      Serial.println(" km/j");
-    } else {
-      currentSpeedKmh = 0.0;
-      Serial.println("Status: Lokasi belum valid (Fix belum 3D). Kecepatan di-set 0.");
-    }
-    Serial.println("---------------------------------");
-  }
-
-  else {
-    Serial.println("Gagal Mengambil data GPS");
-    Serial.println("---------------------------------");
-  }
-
-  // Cek jika sinyal GPS hilang (tidak ada paket data selama > 3 detik)
-  if (gpsDataReceived && (millis() - lastGpsPacketTime > 3000)) {
-    Serial.println("ALERT: Sinyal GPS hilang. Kecepatan di-set 0.");
-    currentSpeedKmh = 0.0;
-    lastGpsPacketTime = millis();  // Reset timer untuk menghindari spam alert
-  }
-
-  Serial.println("Looping Utama Berjalan");
-  Serial.println("---------------------------------");
-
-  // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
-  u8g2.firstPage();
-  do {
-    drawStatusBox();
-    drawSpeedBox(currentSpeedKmh);
-  } while (u8g2.nextPage());
-
-  delay(10);
 }
