@@ -3,11 +3,11 @@
 #include <U8g2lib.h>
 #include <U8x8lib.h>
 
-// --- Konfigurasi LCD (sesuai yang Anda berikan) ---
-U8G2_ST7920_128X64_1_HW_SPI u8g2(U8G2_R0, /* CS=*/10, /* reset=*/8);
-
 // Atur pin yang akan digunakan untuk SoftwareSerial
 SoftwareSerial gpsSerial(4, 5);  // RX, TX
+
+// --- Konfigurasi LCD (sesuai yang Anda berikan) ---
+U8G2_ST7920_128X64_1_HW_SPI u8g2(U8G2_R0, /* CS=*/10, /* reset=*/8);
 
 // Variabel global untuk menyimpan status & kecepatan
 double currentSpeedKmh = 0.0;
