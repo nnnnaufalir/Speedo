@@ -14,8 +14,6 @@ SoftwareSerial gpsSerial(4, 5);  // RX, TX
 
 // Variabel global untuk menyimpan status & kecepatan
 double currentSpeedKmh = 0.0;
-unsigned long lastGpsPacketTime = 0;
-bool gpsDataReceived = false;
 
 // Struktur untuk menampung data mentah dari payload UBX-NAV-PVT
 struct GpsData {
@@ -199,9 +197,7 @@ void loop() {
   // Panggil fungsi parser. Jika mengembalikan true, cetak datanya.
   if (parseUbx()) {
     Serial.println("--- Data GPS Valid Diterima ---");
-    lastGpsPacketTime = millis();  // Catat waktu terakhir dapat paket valid
-    gpsDataReceived = true;
-
+    
     if (isLocationValid()) {
       Serial.print("  Lokasi: ");
       Serial.print(getLatitude(), 7);
