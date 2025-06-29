@@ -178,8 +178,7 @@ void setup() {
 }
 
 void loop() {
-  u8g2.clearBuffer();
-  // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
+
   if (parseUbx()) {
     Serial.println("--- Data GPS Valid Diterima ---");
 
@@ -207,9 +206,12 @@ void loop() {
     Serial.println("---------------------------------");
   }
 
-  drawStatusBox();
-  drawSpeedBox(currentSpeedKmh);
-  u8g2.sendBuffer();
+  // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
+  u8g2.firstPage();
+  do {
+    drawStatusBox();
+    drawSpeedBox(currentSpeedKmh);
+  } while (u8g2.nextPage());
 
   delay(10);
 }
