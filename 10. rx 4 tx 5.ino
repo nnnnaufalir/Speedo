@@ -67,56 +67,28 @@ bool parseUbx() {
     byte b = gpsSerial.read();
 
     switch (currentState) {
-      case STATE_WAIT_SYNC1:
-        if (b == 0xB5) currentState = STATE_WAIT_SYNC2;
-        break;
-      case STATE_WAIT_SYNC2:
-        if (b == 0x62) currentState = STATE_WAIT_CLASS;
-        else currentState = STATE_WAIT_SYNC1;
-        break;
-      case STATE_WAIT_CLASS:
-        msgClass = b;
-        ck_a = 0; ck_b = 0;
-        ck_a += b; ck_b += ck_a;
-        currentState = STATE_WAIT_ID;
-        break;
-      case STATE_WAIT_ID:
-        msgId = b;
-        ck_a += b; ck_b += ck_a;
-        currentState = STATE_WAIT_LEN1;
-        break;
-      case STATE_WAIT_LEN1:
-        msgLen = b;
-        ck_a += b; ck_b += ck_a;
-        currentState = STATE_WAIT_LEN2;
-        break;
+      case STATE_WAIT_SYNC1: if (b == 0xB5) currentState = STATE_WAIT_SYNC2; break;
+      case STATE_WAIT_SYNC2: if (b == 0x62) currentState = STATE_WAIT_CLASS; else currentState = STATE_WAIT_SYNC1; break;
+      case STATE_WAIT_CLASS: msgClass = b; ck_a = 0; ck_b = 0; ck_a += b; ck_b += ck_a; currentState = STATE_WAIT_ID; break;
+      case STATE_WAIT_ID: msgId = b; ck_a += b; ck_b += ck_a; currentState = STATE_WAIT_LEN1; break;
+      case STATE_WAIT_LEN1: msgLen = b; ck_a += b; ck_b += ck_a; currentState = STATE_WAIT_LEN2; break;
       case STATE_WAIT_LEN2:
-        msgLen |= (uint16_t)b << 8;
-        ck_a += b; ck_b += ck_a;
+        msgLen |= (uint16_t)b << 8; ck_a += b; ck_b += ck_a;
         if (msgClass == 0x01 && msgId == 0x07 && msgLen == sizeof(GpsData)) {
-          currentState = STATE_PAYLOAD;
-          payloadCounter = 0;
-        } else {
-          currentState = STATE_WAIT_SYNC1;
-        }
+          currentState = STATE_PAYLOAD; payloadCounter = 0;
+        } else { currentState = STATE_WAIT_SYNC1; }
         break;
       case STATE_PAYLOAD:
-        ((byte*)&gpsData)[payloadCounter] = b;
-        ck_a += b; ck_b += ck_a;
-        payloadCounter++;
-        if (payloadCounter >= msgLen) {
-          currentState = STATE_CHECKSUM;
-        }
+        ((byte*)&gpsData)[payloadCounter] = b; ck_a += b; ck_b += ck_a; payloadCounter++;
+        if (payloadCounter >= msgLen) { currentState = STATE_CHECKSUM; }
         break;
       case STATE_CHECKSUM:
         currentState = STATE_WAIT_SYNC1;
-        if (b == ck_a && gpsSerial.read() == ck_b) {
-          return true; // Sukses, data valid diterima
-        }
-        return false; // Checksum gagal
+        if (b == ck_a && gpsSerial.read() == ck_b) { return true; }
+        return false;
     }
   }
-  return false; // Tidak ada data baru yang selesai diproses
+  return false;
 }
 
 // Fungsi helper untuk mendapatkan data
@@ -150,10 +122,6 @@ void drawSpeedBox(double speed) {
   u8g2.drawFrame(0, 32, 128, 32);
 }
 
-// ======================================================================
-// FUNGSI UTAMA
-// ======================================================================
-
 void setup() {
   Serial.begin(9600);
   gpsSerial.begin(115200);
@@ -163,23 +131,46 @@ void setup() {
   u8g2.setFontDirection(0);
   
   Serial.println("GPS Speedometer Siap.");
-  Serial.println("Menunggu data GPS valid untuk menggambar di LCD...");
+  Serial.println("Mencari sinyal GPS...");
 }
 
 void loop() {
-  // Kunci utama: Coba parsing data. Jika berhasil, baru proses dan gambar.
-  // Jika tidak, loop akan berputar cepat untuk memeriksa data serial lagi.
   if (parseUbx()) {
     
-    // Proses data dan cetak ke Serial Monitor untuk debug
+    // --- BLOK DEBUGGING BARU ---
+    // Cetak informasi ini setiap kali ada paket data yang berhasil di-parse
+    Serial.println("\n--- [ INFO DEBUG DITERIMA ] ---");
+    
+    Serial.print("Jumlah Satelit (numSV): ");
+    Serial.println(gpsData.numSV);
+
+    Serial.print("Tipe Fix (fixType):     ");
+    Serial.print(gpsData.fixType);
+    switch(gpsData.fixType) {
+      case 0: Serial.println(" (No Fix)"); break;
+      case 1: Serial.println(" (Dead Reckoning)"); break;
+      case 2: Serial.println(" (2D-Fix)"); break;
+      case 3: Serial.println(" (3D-Fix)"); break;
+      case 4: Serial.println(" (GNSS + Dead Reckoning)"); break;
+      case 5: Serial.println(" (Time only)"); break;
+      default: Serial.println(" (Unknown)"); break;
+    }
+
+    Serial.print("Flag gnssFixOK:         ");
+    Serial.println((gpsData.flags & 0x01) ? "Ya" : "Tidak");
+
+    Serial.print("Presisi Posisi (pDOP):  ");
+    Serial.println(gpsData.pDOP / 100.0);
+
+    Serial.println("---------------------------------");
+
+    // Blok logika utama tetap sama
     if (isLocationValid()) {
       currentSpeedKmh = convertToKmPerHour(getGroundSpeed());
-      Serial.print("Status: LOKASI VALID. Kecepatan: ");
-      Serial.print(currentSpeedKmh);
-      Serial.println(" km/j");
+      Serial.println(">>> STATUS: LOKASI VALID. Memperbarui kecepatan.");
     } else {
-      currentSpeedKmh = 0.0; // Reset kecepatan jika lokasi tidak valid
-      Serial.println("Status: Lokasi Belum Valid.");
+      currentSpeedKmh = 0.0;
+      Serial.println(">>> STATUS: Lokasi Belum Valid.");
     }
 
     // Hanya gambar ulang LCD jika ada data baru yang valid
