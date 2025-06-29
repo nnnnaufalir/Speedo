@@ -178,39 +178,38 @@ void setup() {
 }
 
 void loop() {
-
+  u8g2.clearBuffer();
   // --- Selalu gambar ulang tampilan di LCD pada setiap loop ---
-  u8g2.firstPage();
-  do {
-    if (parseUbx()) {
-      Serial.println("--- Data GPS Valid Diterima ---");
+  if (parseUbx()) {
+    Serial.println("--- Data GPS Valid Diterima ---");
 
-      if (isLocationValid()) {
-        Serial.print("  Lokasi: ");
-        Serial.print(getLatitude(), 7);
-        Serial.print(", ");
-        Serial.println(getLongitude(), 7);
-        Serial.print("  Ketinggian: ");
-        Serial.print(getAltitudeMSL());
-        Serial.println(" m (di atas permukaan laut)");
-        Serial.print("  Kecepatan: ");
-        Serial.print(getGroundSpeed());
-        Serial.println(" m/s");
-        currentSpeedKmh = convertToKmPerHour(getGroundSpeed());
-        Serial.print("Status: LOKASI VALID. Kecepatan: ");
-        Serial.print(currentSpeedKmh);
-        Serial.println(" km/j");
-      } else {
-        Serial.println("  Lokasi Belum Valid (Fix Type < 3D)");
-      }
-
-      Serial.print("  Satelit: ");
-      Serial.println(gpsData.numSV);
-      Serial.println("---------------------------------");
+    if (isLocationValid()) {
+      Serial.print("  Lokasi: ");
+      Serial.print(getLatitude(), 7);
+      Serial.print(", ");
+      Serial.println(getLongitude(), 7);
+      Serial.print("  Ketinggian: ");
+      Serial.print(getAltitudeMSL());
+      Serial.println(" m (di atas permukaan laut)");
+      Serial.print("  Kecepatan: ");
+      Serial.print(getGroundSpeed());
+      Serial.println(" m/s");
+      currentSpeedKmh = convertToKmPerHour(getGroundSpeed());
+      Serial.print("Status: LOKASI VALID. Kecepatan: ");
+      Serial.print(currentSpeedKmh);
+      Serial.println(" km/j");
+    } else {
+      Serial.println("  Lokasi Belum Valid (Fix Type < 3D)");
     }
-    drawStatusBox();
-    drawSpeedBox(currentSpeedKmh);
-  } while (u8g2.nextPage());
+
+    Serial.print("  Satelit: ");
+    Serial.println(gpsData.numSV);
+    Serial.println("---------------------------------");
+  }
+
+  drawStatusBox();
+  drawSpeedBox(currentSpeedKmh);
+  u8g2.sendBuffer();
 
   delay(10);
 }
